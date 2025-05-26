@@ -380,6 +380,7 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
         "ENABLE_ONEDRIVE_INTEGRATION": request.app.state.config.ENABLE_ONEDRIVE_INTEGRATION,
         # Web search settings
         "web": {
+            "ENABLE_RAG_SEARCH": request.app.state.config.ENABLE_RAG_SEARCH,
             "ENABLE_WEB_SEARCH": request.app.state.config.ENABLE_WEB_SEARCH,
             "WEB_SEARCH_ENGINE": request.app.state.config.WEB_SEARCH_ENGINE,
             "WEB_SEARCH_TRUST_ENV": request.app.state.config.WEB_SEARCH_TRUST_ENV,
@@ -432,6 +433,7 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
 
 
 class WebConfig(BaseModel):
+    ENABLE_RAG_SEARCH: Optional[bool] = None
     ENABLE_WEB_SEARCH: Optional[bool] = None
     WEB_SEARCH_ENGINE: Optional[str] = None
     WEB_SEARCH_TRUST_ENV: Optional[bool] = None
@@ -734,6 +736,7 @@ async def update_rag_config(
 
     if form_data.web is not None:
         # Web search settings
+        request.app.state.config.ENABLE_RAG_SEARCH = form_data.web.ENABLE_RAG_SEARCH
         request.app.state.config.ENABLE_WEB_SEARCH = form_data.web.ENABLE_WEB_SEARCH
         request.app.state.config.WEB_SEARCH_ENGINE = form_data.web.WEB_SEARCH_ENGINE
         request.app.state.config.WEB_SEARCH_TRUST_ENV = (
@@ -868,6 +871,7 @@ async def update_rag_config(
         "ENABLE_ONEDRIVE_INTEGRATION": request.app.state.config.ENABLE_ONEDRIVE_INTEGRATION,
         # Web search settings
         "web": {
+            "ENABLE_RAG_SEARCH": request.app.state.config.ENABLE_RAG_SEARCH,
             "ENABLE_WEB_SEARCH": request.app.state.config.ENABLE_WEB_SEARCH,
             "WEB_SEARCH_ENGINE": request.app.state.config.WEB_SEARCH_ENGINE,
             "WEB_SEARCH_TRUST_ENV": request.app.state.config.WEB_SEARCH_TRUST_ENV,

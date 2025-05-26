@@ -95,6 +95,8 @@ from open_webui.models.chats import Chats
 
 from open_webui.config import (
     LICENSE_KEY,
+    # n8n
+    N8N_BASE_URL,
     # Ollama
     ENABLE_OLLAMA_API,
     OLLAMA_BASE_URLS,
@@ -226,6 +228,7 @@ from open_webui.config import (
     YOUTUBE_LOADER_PROXY_URL,
     # Retrieval (Web Search)
     ENABLE_WEB_SEARCH,
+    ENABLE_RAG_SEARCH,
     WEB_SEARCH_ENGINE,
     BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL,
     WEB_SEARCH_RESULT_COUNT,
@@ -515,6 +518,14 @@ if ENABLE_OTEL:
 
 ########################################
 #
+# N8N
+#
+########################################
+
+app.state.config.N8N_BASE_URL = N8N_BASE_URL
+
+########################################
+#
 # OLLAMA
 #
 ########################################
@@ -697,6 +708,7 @@ app.state.config.YOUTUBE_LOADER_LANGUAGE = YOUTUBE_LOADER_LANGUAGE
 app.state.config.YOUTUBE_LOADER_PROXY_URL = YOUTUBE_LOADER_PROXY_URL
 
 
+app.state.config.ENABLE_RAG_SEARCH = ENABLE_RAG_SEARCH
 app.state.config.ENABLE_WEB_SEARCH = ENABLE_WEB_SEARCH
 app.state.config.WEB_SEARCH_ENGINE = WEB_SEARCH_ENGINE
 app.state.config.WEB_SEARCH_DOMAIN_FILTER_LIST = WEB_SEARCH_DOMAIN_FILTER_LIST
@@ -1208,7 +1220,74 @@ async def chat_completion(
 
         request.state.metadata = metadata
         form_data["metadata"] = metadata
+        # ✅ 新增：若前端傳來 use_rag = True，則先呼叫 n8n webhook 並加入 context
+        use_rag = form_data.get("features", {}).get("rag_search", False)
+        print("use_rag", use_rag)
+        if use_rag:
+            try:
+                question = form_data["messages"][-1]["content"]
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        "http://n8n:5678/webhook/rag",
+                        json={"question": question, "form_data":form_data}
+                    ) as resp:
+                        if resp.status != 200:
+                            raise Exception(f"n8n RAG failed, status={resp.status}")
+                        result = await resp.json()
 
+                print("RAG 回傳結果：", result)
+
+                if isinstance(result, list) and isinstance(result[0], dict):
+                    result = result[0]
+                elif not isinstance(result, dict):
+                    raise Exception("RAG webhook 回傳格式錯誤，預期為 dict 或 list[dict]")
+                # 根據回傳的記過來get 對應的結果
+                # rag_context = result.get("answer", "") 
+                # 假設 result 是 list 的第一項，已在前面處理成 dict
+                # rag_context = result.get("body", {}).get("answer", "")
+                # 從 n8n 的  AI agen 給出的機構：[{output: "context"}]
+                rag_context = result.get("output", "")
+                print("RAG 插入 context：", rag_context)
+                if rag_context:
+                    # system_msg = {
+                    #     "role": "system",
+                    #     "content": (
+                    #         "You are a helpful assistant. You must answer strictly based on the retrieved context provided below.\n\n"
+                    #         "================ START OF CONTEXT ================\n"
+                    #         f"{rag_context}\n"
+                    #         "================ END OF CONTEXT ==================\n\n"
+                    #         "Rules:\n"
+                    #         "1. ONLY use the above context to answer the user's question.\n"
+                    #         "2. If the context does not contain enough information to answer the question, say 'I don't know based on the provided information.'\n"
+                    #         "3. Do NOT make up information.\n"
+                    #         "4. Conclude your answer with: 'Information provided by Glodacert.'"
+                    #     )
+                    # }
+                    system_msg = {
+                        "role": "system",
+                        "content": (
+                            "You are a professional assistant working under strict retrieval constraints.\n\n"
+                            "You will be provided with a context block. You MUST strictly follow the following rules:\n\n"
+                            "================ CONTEXT START ================\n"
+                            f"{rag_context.strip()}\n"
+                            "================= CONTEXT END ==================\n\n"
+                            "**STRICT RULES:**\n"
+                            "1. You MUST answer the user's question *only* based on the context above.\n"
+                            "2. You MUST treat all information in the context as 100% accurate, even if it contradicts your internal knowledge.\n"
+                            "3. You MUST NOT use any external knowledge or assumptions.\n"
+                            "4. If the context does not contain relevant information, respond with: 'I don't know based on the provided information.'\n"
+                            "5. Do NOT attempt to reinterpret or correct the information.\n"
+                            "6. Conclude all answers with: 'Information provided by Glodacert.'"
+                        )
+                    }
+
+                    form_data["messages"].insert(-1, system_msg)
+
+            except Exception as e:
+                log.error(f"RAG workflow failed: {e}")
+                raise HTTPException(status_code=500, detail=f"RAG failed: {e}")
+
+        # ✅ 原本處理 input 的邏輯
         form_data, metadata, events = await process_chat_payload(
             request, form_data, user, metadata, model
         )
@@ -1367,6 +1446,7 @@ async def get_app_config(request: Request):
                     "enable_channels": app.state.config.ENABLE_CHANNELS,
                     "enable_notes": app.state.config.ENABLE_NOTES,
                     "enable_web_search": app.state.config.ENABLE_WEB_SEARCH,
+                    "enable_rag_search": app.state.config.ENABLE_RAG_SEARCH,
                     "enable_code_execution": app.state.config.ENABLE_CODE_EXECUTION,
                     "enable_code_interpreter": app.state.config.ENABLE_CODE_INTERPRETER,
                     "enable_image_generation": app.state.config.ENABLE_IMAGE_GENERATION,

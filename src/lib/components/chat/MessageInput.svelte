@@ -54,6 +54,7 @@
 	import Sparkles from '../icons/Sparkles.svelte';
 
 	import { KokoroWorker } from '$lib/workers/KokoroWorker';
+	import RagSearch from '../icons/RAGSearch.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -84,6 +85,7 @@
 
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
+	export let ragSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
 
 	$: onChange({
@@ -93,6 +95,7 @@
 		selectedFilterIds,
 		imageGenerationEnabled,
 		webSearchEnabled,
+		ragSearchEnabled,
 		codeInterpreterEnabled
 	});
 
@@ -127,6 +130,10 @@
 
 	let webSearchCapableModels = [];
 	$: webSearchCapableModels = (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).filter(
+		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.web_search ?? true
+	);
+	let ragSearchCapableModels = [];
+	$: ragSearchCapableModels = (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).filter(
 		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.web_search ?? true
 	);
 
@@ -811,6 +818,7 @@
 														selectedFilterIds = [];
 
 														webSearchEnabled = false;
+														ragSearchEnabled = false;
 														imageGenerationEnabled = false;
 														codeInterpreterEnabled = false;
 													}
@@ -1036,6 +1044,7 @@
 													selectedToolIds = [];
 													selectedFilterIds = [];
 													webSearchEnabled = false;
+													ragSearchEnabled = false;
 													imageGenerationEnabled = false;
 													codeInterpreterEnabled = false;
 												}
@@ -1242,6 +1251,25 @@
 															<span
 																class="hidden @xl:block whitespace-nowrap overflow-hidden text-ellipsis translate-y-[0.5px]"
 																>{$i18n.t('Web Search')}</span
+															>
+														</button>
+													</Tooltip>
+												{/if}
+
+												{#if (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length === ragSearchCapableModels.length && $config?.features?.enable_rag_search && ($_user.role === 'admin' || $_user?.permissions?.features?.rag_search)}
+													<Tooltip content={$i18n.t('Search the RAG')} placement="top">
+														<button
+															on:click|preventDefault={() => (ragSearchEnabled = !ragSearchEnabled)}
+															type="button"
+															class="px-1.5 @xl:px-2.5 py-1.5 flex gap-1.5 items-center text-sm rounded-full font-medium transition-colors duration-300 focus:outline-hidden max-w-full overflow-hidden border {ragSearchEnabled ||
+															($settings?.ragSearch ?? false) === 'always'
+																? 'bg-blue-100 dark:bg-blue-500/20 border-blue-400/20 text-blue-500 dark:text-blue-400'
+																: 'bg-transparent border-transparent text-gray-600 dark:text-gray-300 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}"
+														>
+															<RagSearch className="size-5" strokeWidth="1.75" />
+															<span
+																class="hidden @xl:block whitespace-nowrap overflow-hidden text-ellipsis translate-y-[0.5px]"
+																>{$i18n.t('RAG Search')}</span
 															>
 														</button>
 													</Tooltip>

@@ -99,6 +99,15 @@
 
 					<div class="  mb-2.5 flex w-full justify-between">
 						<div class=" self-center text-xs font-medium">
+							{$i18n.t('RAG Search')}
+						</div>
+						<div class="flex items-center relative">
+							<Switch bind:state={webConfig.ENABLE_RAG_SEARCH} />
+						</div>
+					</div>
+					
+					<div class="  mb-2.5 flex w-full justify-between">
+						<div class=" self-center text-xs font-medium">
 							{$i18n.t('Web Search')}
 						</div>
 						<div class="flex items-center relative">

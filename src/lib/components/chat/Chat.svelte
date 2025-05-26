@@ -122,6 +122,7 @@
 	let selectedFilterIds = [];
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
+	let ragSearchEnabled = false;
 	let codeInterpreterEnabled = false;
 
 	let chat = null;
@@ -149,6 +150,7 @@
 			selectedToolIds = [];
 			selectedFilterIds = [];
 			webSearchEnabled = false;
+			ragSearchEnabled = false;
 			imageGenerationEnabled = false;
 
 			if (localStorage.getItem(`chat-input${chatIdProp ? `-${chatIdProp}` : ''}`)) {
@@ -163,6 +165,7 @@
 						selectedToolIds = input.selectedToolIds;
 						selectedFilterIds = input.selectedFilterIds;
 						webSearchEnabled = input.webSearchEnabled;
+						ragSearchEnabled = input.ragSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
 						codeInterpreterEnabled = input.codeInterpreterEnabled;
 					}
@@ -441,6 +444,7 @@
 			selectedToolIds = [];
 			selectedFilterIds = [];
 			webSearchEnabled = false;
+			ragSearchEnabled = false;
 			imageGenerationEnabled = false;
 			codeInterpreterEnabled = false;
 
@@ -455,6 +459,7 @@
 					selectedToolIds = input.selectedToolIds;
 					selectedFilterIds = input.selectedFilterIds;
 					webSearchEnabled = input.webSearchEnabled;
+					ragSearchEnabled = input.ragSearchEnabled;
 					imageGenerationEnabled = input.imageGenerationEnabled;
 					codeInterpreterEnabled = input.codeInterpreterEnabled;
 				}
@@ -773,6 +778,9 @@
 		}
 		if ($page.url.searchParams.get('web-search') === 'true') {
 			webSearchEnabled = true;
+		}
+		if ($page.url.searchParams.get('rag-search') === 'true') {
+			ragSearchEnabled = true;
 		}
 
 		if ($page.url.searchParams.get('image-generation') === 'true') {
@@ -1661,6 +1669,11 @@
 						($user?.role === 'admin' || $user?.permissions?.features?.code_interpreter)
 							? codeInterpreterEnabled
 							: false,
+					rag_search:
+						$config?.features?.enable_rag_search &&
+						($user?.role === 'admin' || $user?.permissions?.features?.rag_search)
+							? ragSearchEnabled || ($settings?.ragSearch ?? false) === 'always'
+							: false,
 					web_search:
 						$config?.features?.enable_web_search &&
 						($user?.role === 'admin' || $user?.permissions?.features?.web_search)
@@ -2092,6 +2105,7 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
+								bind:ragSearchEnabled
 								bind:atSelectedModel
 								toolServers={$toolServers}
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
@@ -2149,6 +2163,7 @@
 								bind:imageGenerationEnabled
 								bind:codeInterpreterEnabled
 								bind:webSearchEnabled
+								bind:ragSearchEnabled
 								bind:atSelectedModel
 								transparentBackground={$settings?.backgroundImageUrl ?? false}
 								toolServers={$toolServers}

@@ -761,6 +761,23 @@ ENABLE_DIRECT_CONNECTIONS = PersistentConfig(
 )
 
 ####################################
+# N8N_BASE_URL
+####################################
+
+N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "")
+if N8N_BASE_URL:
+    # Remove trailing slash
+    N8N_BASE_URL = (
+        N8N_BASE_URL[:-1] if N8N_BASE_URL.endswith("/") else N8N_BASE_URL
+    )
+
+N8N_BASE_URL = PersistentConfig(
+    "N8N_BASE_URL",
+    "n8n.base_url",
+    os.environ.get("N8N_BASE_URL", "")
+)
+
+####################################
 # OLLAMA_BASE_URL
 ####################################
 
@@ -1115,6 +1132,9 @@ USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS = (
 USER_PERMISSIONS_FEATURES_WEB_SEARCH = (
     os.environ.get("USER_PERMISSIONS_FEATURES_WEB_SEARCH", "True").lower() == "true"
 )
+USER_PERMISSIONS_FEATURES_RAG_SEARCH = (
+    os.environ.get("USER_PERMISSIONS_FEATURES_RAG_SEARCH", "True").lower() == "true"
+)
 
 USER_PERMISSIONS_FEATURES_IMAGE_GENERATION = (
     os.environ.get("USER_PERMISSIONS_FEATURES_IMAGE_GENERATION", "True").lower()
@@ -1161,6 +1181,8 @@ DEFAULT_USER_PERMISSIONS = {
     "features": {
         "direct_tool_servers": USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS,
         "web_search": USER_PERMISSIONS_FEATURES_WEB_SEARCH,
+        "rag_search": USER_PERMISSIONS_FEATURES_RAG_SEARCH,
+        # "rag_search": True,
         "image_generation": USER_PERMISSIONS_FEATURES_IMAGE_GENERATION,
         "code_interpreter": USER_PERMISSIONS_FEATURES_CODE_INTERPRETER,
         "notes": USER_PERMISSIONS_FEATURES_NOTES,
@@ -2153,6 +2175,16 @@ YOUTUBE_LOADER_PROXY_URL = PersistentConfig(
     os.getenv("YOUTUBE_LOADER_PROXY_URL", ""),
 )
 
+
+####################################
+# RAG Search (RAG)
+####################################
+
+ENABLE_RAG_SEARCH = PersistentConfig(
+    "ENABLE_RAG_SEARCH",
+    "rag.rag.search.enable",
+    os.getenv("ENABLE_RAG_SEARCH", "False").lower() == "true",
+)
 
 ####################################
 # Web Search (RAG)
