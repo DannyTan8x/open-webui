@@ -345,6 +345,9 @@ except ValueError:
 ####################################
 
 WEBUI_AUTH = os.environ.get("WEBUI_AUTH", "True").lower() == "true"
+
+N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "http://n8n:5678")
+
 WEBUI_AUTH_TRUSTED_EMAIL_HEADER = os.environ.get(
     "WEBUI_AUTH_TRUSTED_EMAIL_HEADER", None
 )
