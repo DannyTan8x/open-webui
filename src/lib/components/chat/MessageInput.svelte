@@ -85,7 +85,7 @@
 
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
-	export let ragSearchEnabled = false;
+	export let ragSearchEnabled = true;
 	export let codeInterpreterEnabled = false;
 
 	$: onChange({
@@ -818,7 +818,7 @@
 														selectedFilterIds = [];
 
 														webSearchEnabled = false;
-														ragSearchEnabled = false;
+														ragSearchEnabled = true;
 														imageGenerationEnabled = false;
 														codeInterpreterEnabled = false;
 													}
@@ -1044,7 +1044,7 @@
 													selectedToolIds = [];
 													selectedFilterIds = [];
 													webSearchEnabled = false;
-													ragSearchEnabled = false;
+													ragSearchEnabled = true;
 													imageGenerationEnabled = false;
 													codeInterpreterEnabled = false;
 												}

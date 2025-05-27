@@ -1249,20 +1249,6 @@ async def chat_completion(
                 rag_context = result.get("output", "")
                 print("RAG 插入 context：", rag_context)
                 if rag_context:
-                    # system_msg = {
-                    #     "role": "system",
-                    #     "content": (
-                    #         "You are a helpful assistant. You must answer strictly based on the retrieved context provided below.\n\n"
-                    #         "================ START OF CONTEXT ================\n"
-                    #         f"{rag_context}\n"
-                    #         "================ END OF CONTEXT ==================\n\n"
-                    #         "Rules:\n"
-                    #         "1. ONLY use the above context to answer the user's question.\n"
-                    #         "2. If the context does not contain enough information to answer the question, say 'I don't know based on the provided information.'\n"
-                    #         "3. Do NOT make up information.\n"
-                    #         "4. Conclude your answer with: 'Information provided by Glodacert.'"
-                    #     )
-                    # }
                     system_msg = {
                         "role": "system",
                         "content": (
@@ -1271,13 +1257,16 @@ async def chat_completion(
                             "================ CONTEXT START ================\n"
                             f"{rag_context.strip()}\n"
                             "================= CONTEXT END ==================\n\n"
+                            f"Answer the following question only using the context above:\n"
+                            f"{question}"
                             "**STRICT RULES:**\n"
                             "1. You MUST answer the user's question *only* based on the context above.\n"
                             "2. You MUST treat all information in the context as 100% accurate, even if it contradicts your internal knowledge.\n"
                             "3. You MUST NOT use any external knowledge or assumptions.\n"
                             "4. If the context does not contain relevant information, respond with: 'I don't know based on the provided information.'\n"
                             "5. Do NOT attempt to reinterpret or correct the information.\n"
-                            "6. Conclude all answers with: 'Information provided by Glodacert.'"
+                            "6. You MUST detect the language of the user's input, and respond in the *same language*.\n"
+                            "7. Conclude all answers with: 'Information provided by Glodacert.'"
                         )
                     }
 
