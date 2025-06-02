@@ -35,7 +35,7 @@ from open_webui.routers.tasks import (
     generate_image_prompt,
     generate_chat_tags,
 )
-from open_webui.routers.retrieval import process_web_search, SearchForm
+from open_webui.routers.retrieval import process_web_search,  process_n8n_search, SearchForm
 from open_webui.routers.images import image_generations, GenerateImageForm
 from open_webui.routers.pipelines import (
     process_pipeline_inlet_filter,
@@ -486,6 +486,164 @@ async def chat_web_search_handler(
 
     return form_data
 
+async def chat_n8n_search_handler(
+    request: Request, form_data: dict, extra_params: dict, user
+):
+    event_emitter = extra_params["__event_emitter__"]
+    await event_emitter(
+        {
+            "type": "status",
+            "data": {
+                "action": "n8n_search",
+                "description": "Generating search query",
+                "done": False,
+            },
+        }
+    )
+
+    messages = form_data["messages"]
+    user_message = get_last_user_message(messages)
+
+    queries = []
+    try:
+        res = await generate_queries(
+            request,
+            {
+                "model": form_data["model"],
+                "messages": messages,
+                "prompt": user_message,
+                "type": "n8n_search",
+            },
+            user,
+        )
+
+        response = res["choices"][0]["message"]["content"]
+
+        try:
+            bracket_start = response.find("{")
+            bracket_end = response.rfind("}") + 1
+
+            if bracket_start == -1 or bracket_end == -1:
+                raise Exception("No JSON object found in the response")
+
+            response = response[bracket_start:bracket_end]
+            queries = json.loads(response)
+            queries = queries.get("queries", [])
+        except Exception as e:
+            queries = [response]
+
+    except Exception as e:
+        log.exception(e)
+        queries = [user_message]
+
+    # Check if generated queries are empty
+    if len(queries) == 1 and queries[0].strip() == "":
+        queries = [user_message]
+
+    # Check if queries are not found
+    if len(queries) == 0:
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "n8n_search",
+                    "description": "No search query generated",
+                    "done": True,
+                },
+            }
+        )
+        return form_data
+
+    await event_emitter(
+        {
+            "type": "status",
+            "data": {
+                "action": "n8n_search",
+                "description": "Searching from n8n",
+                "done": False,
+            },
+        }
+    )
+
+    try:
+        results = await process_n8n_search(
+            request,
+            SearchForm(queries=queries),
+            user=user,
+        )
+
+        if results:
+            files = form_data.get("files", [])
+
+            if results.get("collection_names"):
+                for col_idx, collection_name in enumerate(
+                    results.get("collection_names")
+                ):
+                    files.append(
+                        {
+                            "collection_name": collection_name,
+                            "name": ", ".join(queries),
+                            "type": "n8n_search",
+                            "urls": results["filenames"],
+                            "queries": queries,
+                        }
+                    )
+            elif results.get("docs"):
+                # Invoked when bypass embedding and retrieval is set to True
+                docs = results["docs"]
+                files.append(
+                    {
+                        "docs": docs,
+                        "name": ", ".join(queries),
+                        "type": "n8n_search",
+                        "urls": results["filenames"],
+                        "queries": queries,
+                    }
+                )
+
+            form_data["files"] = files
+
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "n8n_search",
+                        "description": "Searched {{count}} resources",
+                        "urls": results["filenames"],
+                        "done": True,
+                    },
+                }
+            )
+        else:
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "n8n_search",
+                        "description": "No search results found",
+                        "done": True,
+                        "error": True,
+                    },
+                }
+            )
+
+    except Exception as e:
+        log.exception(e)
+        await event_emitter(
+            {
+                "type": "status",
+                "data": {
+                    "action": "n8n_search",
+                    "description": "An error occurred while searching from n8n",
+                    "queries": queries,
+                    "done": True,
+                    "error": True,
+                },
+            }
+        )
+
+    return form_data
+
 
 async def chat_image_generation_handler(
     request: Request, form_data: dict, extra_params: dict, user
@@ -699,11 +857,14 @@ def apply_params_to_form_data(form_data, model):
             except Exception as e:
                 log.exception(f"Error parsing logit_bias: {e}")
 
+    # Preserve features in form_data
+    if "features" in form_data:
+        form_data["features"] = form_data["features"]
+
     return form_data
 
 
 async def process_chat_payload(request, form_data, user, metadata, model):
-
     form_data = apply_params_to_form_data(form_data, model)
     log.debug(f"form_data: {form_data}")
 
@@ -814,6 +975,7 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         raise Exception(f"Error: {e}")
 
     features = form_data.pop("features", None)
+    print(f"{features=}")
     if features:
         if "memory" in features and features["memory"]:
             form_data = await chat_memory_handler(
@@ -822,6 +984,11 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
         if "web_search" in features and features["web_search"]:
             form_data = await chat_web_search_handler(
+                request, form_data, extra_params, user
+            )
+            
+        if "n8n_search" in features and features["n8n_search"]:
+            form_data = await chat_n8n_search_handler(
                 request, form_data, extra_params, user
             )
 

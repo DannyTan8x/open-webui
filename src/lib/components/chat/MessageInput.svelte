@@ -54,6 +54,7 @@
 
 	import { KokoroWorker } from '$lib/workers/KokoroWorker';
 	import RagSearch from '../icons/RAGSearch.svelte';
+	import N8NSearch from '../icons/N8NSearch.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -83,8 +84,9 @@
 	export let selectedFilterIds = [];
 
 	export let imageGenerationEnabled = false;
+	export let n8nSearchEnabled = false;
 	export let webSearchEnabled = false;
-	export let ragSearchEnabled = true;
+	export let ragSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
 
 	$: onChange({
@@ -93,8 +95,9 @@
 		selectedToolIds,
 		selectedFilterIds,
 		imageGenerationEnabled,
-		webSearchEnabled,
-		ragSearchEnabled,
+		n8nSearchEnabled: n8nSearchEnabled || ($settings?.n8nSearch ?? false) === 'always',
+		webSearchEnabled: webSearchEnabled || ($settings?.webSearch ?? false) === 'always',
+		ragSearchEnabled: ragSearchEnabled || ($settings?.ragSearch ?? false) === 'always',
 		codeInterpreterEnabled
 	});
 
@@ -133,9 +136,15 @@
 	$: webSearchCapableModels = (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).filter(
 		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.web_search ?? true
 	);
+
+	let n8nSearchCapableModels = [];
+	$: n8nSearchCapableModels = (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).filter(
+		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.n8n_search ?? true
+	);
+
 	let ragSearchCapableModels = [];
 	$: ragSearchCapableModels = (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).filter(
-		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.web_search ?? true
+		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.rag_search ?? true
 	);
 
 	let imageGenerationCapableModels = [];
@@ -168,6 +177,20 @@
 			webSearchCapableModels.length &&
 		$config?.features?.enable_web_search &&
 		($_user.role === 'admin' || $_user?.permissions?.features?.web_search);
+
+	let showN8NSearchButton = false;
+	$: showN8NSearchButton =
+		(atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length ===
+		n8nSearchCapableModels.length &&
+		$config?.features?.enable_n8n_search &&
+		($_user.role === 'admin' || $_user?.permissions?.features?.n8n_search);
+
+	let showRAGSearchButton = false;
+	$: showRAGSearchButton =
+		(atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length ===
+		ragSearchCapableModels.length &&
+		$config?.features?.enable_rag_search &&
+		($_user.role === 'admin' || $_user?.permissions?.features?.rag_search);
 
 	let showImageGenerationButton = false;
 	$: showImageGenerationButton =
@@ -878,8 +901,9 @@
 														selectedToolIds = [];
 														selectedFilterIds = [];
 
+														n8nSearchEnabled = false;
 														webSearchEnabled = false;
-														ragSearchEnabled = true;
+														ragSearchEnabled = false;
 														imageGenerationEnabled = false;
 														codeInterpreterEnabled = false;
 													}
@@ -1104,8 +1128,9 @@
 													atSelectedModel = undefined;
 													selectedToolIds = [];
 													selectedFilterIds = [];
+													n8nSearchEnabled = false;
 													webSearchEnabled = false;
-													ragSearchEnabled = true;
+													ragSearchEnabled = false;
 													imageGenerationEnabled = false;
 													codeInterpreterEnabled = false;
 												}
@@ -1232,7 +1257,7 @@
 											</button>
 										</InputMenu>
 
-										{#if $_user && (showToolsButton || (toggleFilters && toggleFilters.length > 0) || showWebSearchButton || showImageGenerationButton || showCodeInterpreterButton)}
+										{#if $_user && (showToolsButton || (toggleFilters && toggleFilters.length > 0) || showWebSearchButton || showN8NSearchButton || showRAGSearchButton || showImageGenerationButton || showCodeInterpreterButton)}
 											<div
 												class="flex self-center w-[1px] h-4 mx-1.5 bg-gray-50 dark:bg-gray-800"
 											/>
@@ -1320,16 +1345,33 @@
 														</button>
 													</Tooltip>
 												{/if}
-
-												{#if (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length === ragSearchCapableModels.length && $config?.features?.enable_rag_search && ($_user.role === 'admin' || $_user?.permissions?.features?.rag_search)}
+												{#if showN8NSearchButton}
+													<Tooltip content={$i18n.t('Search with N8N')} placement="top">
+														<button
+															on:click|preventDefault={() => (n8nSearchEnabled = !n8nSearchEnabled)}
+															type="button"
+															class="px-2 @xl:px-2.5 py-2 flex gap-1.5 items-center text-sm rounded-full transition-colors duration-300 focus:outline-hidden max-w-full overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800 {n8nSearchEnabled ||
+															($settings?.n8nSearch ?? false) === 'always'
+																? ' text-sky-500 dark:text-sky-300 bg-sky-50 dark:bg-sky-200/5'
+																: 'bg-transparent text-gray-600 dark:text-gray-300 '}"
+														>
+															<N8NSearch className="size-5" strokeWidth="1.75" />
+															<span
+																class="hidden @xl:block whitespace-nowrap overflow-hidden text-ellipsis translate-y-[0.5px]"
+																>{$i18n.t('N8N Search')}</span
+															>
+														</button>
+													</Tooltip>
+												{/if}
+												{#if showRAGSearchButton}
 													<Tooltip content={$i18n.t('Search the RAG')} placement="top">
 														<button
 															on:click|preventDefault={() => (ragSearchEnabled = !ragSearchEnabled)}
 															type="button"
-															class="px-1.5 @xl:px-2.5 py-1.5 flex gap-1.5 items-center text-sm rounded-full font-medium transition-colors duration-300 focus:outline-hidden max-w-full overflow-hidden border {ragSearchEnabled ||
+															class="px-2 @xl:px-2.5 py-2 flex gap-1.5 items-center text-sm rounded-full transition-colors duration-300 focus:outline-hidden max-w-full overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800 {ragSearchEnabled ||
 															($settings?.ragSearch ?? false) === 'always'
-																? 'bg-blue-100 dark:bg-blue-500/20 border-blue-400/20 text-blue-500 dark:text-blue-400'
-																: 'bg-transparent border-transparent text-gray-600 dark:text-gray-300 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}"
+																? ' text-sky-500 dark:text-sky-300 bg-sky-50 dark:bg-sky-200/5'
+																: 'bg-transparent text-gray-600 dark:text-gray-300 '}"
 														>
 															<RagSearch className="size-5" strokeWidth="1.75" />
 															<span
@@ -1339,6 +1381,44 @@
 														</button>
 													</Tooltip>
 												{/if}
+
+												<!-- {#if (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length === ragSearchCapableModels.length && $config?.features?.enable_rag_search && ($_user.role === 'admin' || $_user?.permissions?.features?.rag_search)}
+													<Tooltip content={$i18n.t('Search the RAG')} placement="top">
+														<button
+															on:click|preventDefault={() => (ragSearchEnabled = !ragSearchEnabled)}
+															type="button"
+															class="px-2 @xl:px-2.5 py-2 flex gap-1.5 items-center text-sm rounded-full transition-colors duration-300 focus:outline-hidden max-w-full overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800 {ragSearchEnabled ||
+															($settings?.ragSearch ?? false) === 'always'
+																? ' text-sky-500 dark:text-sky-300 bg-sky-50 dark:bg-sky-200/5'
+																: 'bg-transparent text-gray-600 dark:text-gray-300 '}"
+														>
+															<RagSearch className="size-5" strokeWidth="1.75" />
+															<span
+																class="hidden @xl:block whitespace-nowrap overflow-hidden text-ellipsis translate-y-[0.5px]"
+																>{$i18n.t('RAG Search')}</span
+															>
+														</button>
+													</Tooltip>
+												{/if}
+
+												{#if (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length === n8nSearchCapableModels.length && $config?.features?.enable_n8n_search && ($_user.role === 'admin' || $_user?.permissions?.features?.n8n_search)}
+													<Tooltip content={$i18n.t('Search with N8N')} placement="top">
+														<button
+															on:click|preventDefault={() => (n8nSearchEnabled = !n8nSearchEnabled)}
+															type="button"
+															class="px-2 @xl:px-2.5 py-2 flex gap-1.5 items-center text-sm rounded-full transition-colors duration-300 focus:outline-hidden max-w-full overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800 {n8nSearchEnabled ||
+															($settings?.n8nSearch ?? false) === 'always'
+																? ' text-sky-500 dark:text-sky-300 bg-sky-50 dark:bg-sky-200/5'
+																: 'bg-transparent text-gray-600 dark:text-gray-300 '}"
+														>
+															<N8NSearch className="size-5" strokeWidth="1.75" />
+															<span
+																class="hidden @xl:block whitespace-nowrap overflow-hidden text-ellipsis translate-y-[0.5px]"
+																>{$i18n.t('N8N Search')}</span
+															>
+														</button>
+													</Tooltip>
+												{/if} -->
 
 												{#if (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length === imageGenerationCapableModels.length && $config?.features?.enable_image_generation && ($_user.role === 'admin' || $_user?.permissions?.features?.image_generation)}
 													<Tooltip content={$i18n.t('Generate an image')} placement="top">

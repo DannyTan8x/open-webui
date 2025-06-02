@@ -61,6 +61,7 @@ class QdrantClient(VectorDBBase):
         self.MEMORY_COLLECTION = f"{self.collection_prefix}_memories"
         self.KNOWLEDGE_COLLECTION = f"{self.collection_prefix}_knowledge"
         self.FILE_COLLECTION = f"{self.collection_prefix}_files"
+        self.N8N_SEARCH_COLLECTION = f"{self.collection_prefix}_n8n-search"
         self.WEB_SEARCH_COLLECTION = f"{self.collection_prefix}_web-search"
         self.HASH_BASED_COLLECTION = f"{self.collection_prefix}_hash-based"
 
@@ -100,6 +101,10 @@ class QdrantClient(VectorDBBase):
         elif collection_name.startswith("file-"):
             return self.FILE_COLLECTION, tenant_id
 
+        # Check for n8n search collections
+        elif collection_name.startswith("n8n-search-"):
+            return self.N8N_SEARCH_COLLECTION, tenant_id
+        
         # Check for web search collections
         elif collection_name.startswith("web-search-"):
             return self.WEB_SEARCH_COLLECTION, tenant_id

@@ -15,6 +15,7 @@
 	import Connections from './Settings/Connections.svelte';
 	import Documents from './Settings/Documents.svelte';
 	import WebSearch from './Settings/WebSearch.svelte';
+	import N8NSearch from './Settings/N8NSearch.svelte';
 
 	import ChartBar from '../icons/ChartBar.svelte';
 	import DocumentChartBar from '../icons/DocumentChartBar.svelte';
@@ -215,6 +216,27 @@
 			</div>
 			<div class=" self-center">{$i18n.t('Web Search')}</div>
 		</button>
+		<button
+			class="px-0.5 py-1 min-w-fit rounded-lg flex-1 md:flex-none flex text-left transition {selectedTab ===
+			'n8n'
+				? ''
+				: ' text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'}"
+			on:click={() => {
+				selectedTab = 'n8n';
+			}}
+		>
+			<div class=" self-center mr-2">
+				<svg
+				xmlns="http://www.w3.org/2000/svg"
+				viewBox="0 0 256 256"
+				fill="currentColor"
+				class="w-4 h-4"
+			  >
+				<path d="M216 144a39.9 39.9 0 0 0-31.94 15.85l-25.8-15.49A40 40 0 0 0 136 104V79.3a40 40 0 1 0-16 0V104a40 40 0 0 0-22.26 40.36l-25.8 15.49a40 40 0 1 0 8.27 13.77l25.8-15.5a40.07 40.07 0 0 0 47.4 0l25.8 15.5A40 40 0 1 0 216 144ZM96 48a24 24 0 1 1 24 24 24 24 0 0 1-24-24ZM40 208a24 24 0 1 1 24-24 24 24 0 0 1-24 24Zm88-56a24 24 0 1 1 24-24 24 24 0 0 1-24 24Zm88 56a24 24 0 1 1 24-24 24 24 0 0 1-24 24Z" />
+			  </svg>
+			</div>
+			<div class=" self-center">{$i18n.t('n8n Search')}</div>
+		</button>
 
 		<button
 			class="px-0.5 py-1 min-w-fit rounded-lg flex-1 md:flex-none flex text-left transition {selectedTab ===
@@ -413,6 +435,15 @@
 			/>
 		{:else if selectedTab === 'web'}
 			<WebSearch
+				saveHandler={async () => {
+					toast.success($i18n.t('Settings saved successfully!'));
+
+					await tick();
+					await config.set(await getBackendConfig());
+				}}
+			/>
+		{:else if selectedTab === 'n8n'}
+			<N8NSearch
 				saveHandler={async () => {
 					toast.success($i18n.t('Settings saved successfully!'));
 

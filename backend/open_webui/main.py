@@ -97,8 +97,7 @@ from open_webui.models.chats import Chats
 
 from open_webui.config import (
     LICENSE_KEY,
-    # n8n
-    N8N_BASE_URL,
+
     # Ollama
     ENABLE_OLLAMA_API,
     OLLAMA_BASE_URLS,
@@ -229,6 +228,14 @@ from open_webui.config import (
     PDF_EXTRACT_IMAGES,
     YOUTUBE_LOADER_LANGUAGE,
     YOUTUBE_LOADER_PROXY_URL,
+    # Retrieval (N8N Search)
+    N8N_BASE_URL,
+    N8N_API_KEY,
+    N8N_WEBHOOK_URL,
+    BYPASS_N8N_EMBEDDING_AND_RETRIEVAL,
+    N8N_SEARCH_RESULT_COUNT,
+    N8N_SEARCH_DOMAIN_FILTER_LIST,
+    ENABLE_N8N_SEARCH,
     # Retrieval (Web Search)
     ENABLE_WEB_SEARCH,
     ENABLE_RAG_SEARCH,
@@ -352,6 +359,7 @@ from open_webui.config import (
     ENABLE_TITLE_GENERATION,
     ENABLE_SEARCH_QUERY_GENERATION,
     ENABLE_RETRIEVAL_QUERY_GENERATION,
+    ENABLE_N8N_RETRIEVAL_QUERY_GENERATION,
     ENABLE_AUTOCOMPLETE_GENERATION,
     TITLE_GENERATION_PROMPT_TEMPLATE,
     TAGS_GENERATION_PROMPT_TEMPLATE,
@@ -712,6 +720,12 @@ app.state.config.PDF_EXTRACT_IMAGES = PDF_EXTRACT_IMAGES
 app.state.config.YOUTUBE_LOADER_LANGUAGE = YOUTUBE_LOADER_LANGUAGE
 app.state.config.YOUTUBE_LOADER_PROXY_URL = YOUTUBE_LOADER_PROXY_URL
 
+app.state.config.ENABLE_N8N_SEARCH = ENABLE_N8N_SEARCH
+app.state.config.N8N_API_KEY = N8N_API_KEY
+app.state.config.N8N_WEBHOOK_URL = N8N_WEBHOOK_URL
+app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL = BYPASS_N8N_EMBEDDING_AND_RETRIEVAL
+app.state.config.N8N_SEARCH_RESULT_COUNT = N8N_SEARCH_RESULT_COUNT
+app.state.config.N8N_SEARCH_DOMAIN_FILTER_LIST = N8N_SEARCH_DOMAIN_FILTER_LIST
 
 app.state.config.ENABLE_RAG_SEARCH = ENABLE_RAG_SEARCH
 app.state.config.ENABLE_WEB_SEARCH = ENABLE_WEB_SEARCH
@@ -924,6 +938,7 @@ app.state.config.TASK_MODEL_EXTERNAL = TASK_MODEL_EXTERNAL
 
 app.state.config.ENABLE_SEARCH_QUERY_GENERATION = ENABLE_SEARCH_QUERY_GENERATION
 app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION = ENABLE_RETRIEVAL_QUERY_GENERATION
+app.state.config.ENABLE_N8N_RETRIEVAL_QUERY_GENERATION = ENABLE_N8N_RETRIEVAL_QUERY_GENERATION
 app.state.config.ENABLE_AUTOCOMPLETE_GENERATION = ENABLE_AUTOCOMPLETE_GENERATION
 app.state.config.ENABLE_TAGS_GENERATION = ENABLE_TAGS_GENERATION
 app.state.config.ENABLE_TITLE_GENERATION = ENABLE_TITLE_GENERATION
@@ -1164,13 +1179,13 @@ async def get_base_models(request: Request, user=Depends(get_admin_user)):
     models = await get_all_base_models(request, user=user)
     return {"data": models}
 
-
 @app.post("/api/chat/completions")
 async def chat_completion(
     request: Request,
     form_data: dict,
     user=Depends(get_verified_user),
 ):
+    print("chat_completion called with form_data:", form_data)
     if not request.app.state.MODELS:
         await get_all_models(request, user=user)
 
@@ -1441,6 +1456,7 @@ async def get_app_config(request: Request):
                     "enable_direct_connections": app.state.config.ENABLE_DIRECT_CONNECTIONS,
                     "enable_channels": app.state.config.ENABLE_CHANNELS,
                     "enable_notes": app.state.config.ENABLE_NOTES,
+                    "enable_n8n_search": app.state.config.ENABLE_N8N_SEARCH,
                     "enable_web_search": app.state.config.ENABLE_WEB_SEARCH,
                     "enable_rag_search": app.state.config.ENABLE_RAG_SEARCH,
                     "enable_code_execution": app.state.config.ENABLE_CODE_EXECUTION,

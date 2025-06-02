@@ -4,13 +4,14 @@ import mimetypes
 import os
 import shutil
 import asyncio
+import aiohttp
 
 
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator, List, Optional, Sequence, Union
-
+from typing import Iterator, List, Optional, Sequence, Union, Dict, Any
+from pydantic import BaseModel, validator
 from fastapi import (
     Depends,
     FastAPI,
@@ -24,9 +25,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel
 import tiktoken
-
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSplitter
 from langchain_core.documents import Document
@@ -41,6 +40,9 @@ from open_webui.retrieval.vector.factory import VECTOR_DB_CLIENT
 # Document loaders
 from open_webui.retrieval.loaders.main import Loader
 from open_webui.retrieval.loaders.youtube import YoutubeLoader
+
+# n8n search engines
+
 
 # Web search engines
 from open_webui.retrieval.web.main import SearchResult
@@ -66,6 +68,9 @@ from open_webui.retrieval.web.perplexity import search_perplexity
 from open_webui.retrieval.web.sougou import search_sougou
 from open_webui.retrieval.web.firecrawl import search_firecrawl
 from open_webui.retrieval.web.external import search_external
+
+from open_webui.retrieval.n8n.main import Searchn8nResult
+from open_webui.retrieval.n8n.n8n_webhook import search_n8n_webhook
 
 from open_webui.retrieval.utils import (
     get_embedding_function,
@@ -431,6 +436,16 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
             "YOUTUBE_LOADER_PROXY_URL": request.app.state.config.YOUTUBE_LOADER_PROXY_URL,
             "YOUTUBE_LOADER_TRANSLATION": request.app.state.YOUTUBE_LOADER_TRANSLATION,
         },
+        # n8n search settings
+        "n8n": {
+            "ENABLE_N8N_SEARCH": request.app.state.config.ENABLE_N8N_SEARCH,
+            "N8N_API_KEY": request.app.state.config.N8N_API_KEY,
+            "N8N_WEBHOOK_URL": request.app.state.config.N8N_WEBHOOK_URL,
+            "BYPASS_N8N_EMBEDDING_AND_RETRIEVAL": request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL,
+            "N8N_SEARCH_RESULT_COUNT": request.app.state.config.N8N_SEARCH_RESULT_COUNT,
+            "N8N_SEARCH_DOMAIN_FILTER_LIST": request.app.state.config.N8N_SEARCH_DOMAIN_FILTER_LIST,
+            
+        },
     }
 
 
@@ -485,6 +500,13 @@ class WebConfig(BaseModel):
     YOUTUBE_LOADER_PROXY_URL: Optional[str] = None
     YOUTUBE_LOADER_TRANSLATION: Optional[str] = None
 
+class n8nConfig(BaseModel):
+    ENABLE_N8N_SEARCH: Optional[bool] = None
+    N8N_API_KEY: Optional[str] = None
+    N8N_WEBHOOK_URL: Optional[str] = None
+    BYPASS_N8N_EMBEDDING_AND_RETRIEVAL: Optional[bool] = None
+    N8N_SEARCH_RESULT_COUNT: Optional[int] = None
+    N8N_SEARCH_DOMAIN_FILTER_LIST: Optional[List[str]] = []
 
 class ConfigForm(BaseModel):
     # RAG settings
@@ -536,6 +558,8 @@ class ConfigForm(BaseModel):
 
     # Web search settings
     web: Optional[WebConfig] = None
+    # n8n search settings
+    n8n: Optional[n8nConfig] = None
 
 
 @router.post("/config/update")
@@ -841,6 +865,16 @@ async def update_rag_config(
             form_data.web.YOUTUBE_LOADER_TRANSLATION
         )
 
+
+    if form_data.n8n is not None:
+        request.app.state.config.ENABLE_N8N_SEARCH = form_data.n8n.ENABLE_N8N_SEARCH
+        request.app.state.config.N8N_API_KEY = form_data.n8n.N8N_API_KEY
+        request.app.state.config.N8N_WEBHOOK_URL = form_data.n8n.N8N_WEBHOOK_URL
+        request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL = form_data.n8n.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL
+        request.app.state.config.N8N_SEARCH_RESULT_COUNT = form_data.n8n.N8N_SEARCH_RESULT_COUNT
+        request.app.state.config.N8N_SEARCH_DOMAIN_FILTER_LIST = form_data.n8n.N8N_SEARCH_DOMAIN_FILTER_LIST
+
+
     return {
         "status": True,
         # RAG settings
@@ -933,6 +967,14 @@ async def update_rag_config(
             "YOUTUBE_LOADER_LANGUAGE": request.app.state.config.YOUTUBE_LOADER_LANGUAGE,
             "YOUTUBE_LOADER_PROXY_URL": request.app.state.config.YOUTUBE_LOADER_PROXY_URL,
             "YOUTUBE_LOADER_TRANSLATION": request.app.state.YOUTUBE_LOADER_TRANSLATION,
+        },
+        "n8n": {
+            "ENABLE_N8N_SEARCH": request.app.state.config.ENABLE_N8N_SEARCH,
+            "N8N_API_KEY": request.app.state.config.N8N_API_KEY,
+            "N8N_WEBHOOK_URL": request.app.state.config.N8N_WEBHOOK_URL,
+            "BYPASS_N8N_EMBEDDING_AND_RETRIEVAL": request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL,
+            "N8N_SEARCH_RESULT_COUNT": request.app.state.config.N8N_SEARCH_RESULT_COUNT,
+            "N8N_SEARCH_DOMAIN_FILTER_LIST": request.app.state.config.N8N_SEARCH_DOMAIN_FILTER_LIST,
         },
     }
 
@@ -1418,7 +1460,6 @@ def process_web(
             detail=ERROR_MESSAGES.DEFAULT(e),
         )
 
-
 def search_web(request: Request, engine: str, query: str) -> list[SearchResult]:
     """Search the web using a search engine and return the results as a list of SearchResult objects.
     Will look for a search engine API key in environment variables in the following order:
@@ -1768,6 +1809,194 @@ async def process_web_search(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT(e),
+        )
+
+            
+# async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
+#     n8n_url = request.app.state.config.N8N_WEBHOOK_URL
+
+#     payload = {
+#         "query": query,
+#         "limit": 20  # 你想查幾筆
+#     }
+
+#     async with aiohttp.ClientSession() as session:
+#         async with session.post(n8n_url, json=payload) as resp:
+#             if resp.status != 200:
+#                 raise Exception(f"n8n search failed: {resp.status}")
+#             results = await resp.json()
+
+#     search_results = []
+#     for item in results.get("data", []):
+#         search_results.append(SearchResult(
+#             title=item.get("title", "No Title"),
+#             snippet=item.get("summary", ""),
+#             link=item.get("url", "#")
+#         ))
+
+#     return search_results    
+
+# class DynamicSearchResult(BaseModel):
+#     id: Optional[int] = None
+#     content: str
+#     link: Optional[str] = None
+#     # This will store any additional dynamic fields
+#     additional_fields: Dict[str, Any] = {}
+
+#     @validator('additional_fields', pre=True, always=True)
+#     def set_additional_fields(cls, v, values):
+#         # Get all fields from the input that aren't part of the base model
+#         base_fields = {'id', 'content', 'link'}
+#         return {k: v for k, v in values.items() if k not in base_fields}
+
+async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
+    url = request.app.state.config.N8N_WEBHOOK_URL
+    payload = {
+        "question": query,
+        "form_data": {
+            "messages": [{"role": "user", "content": query}]
+        }
+    }
+    print(f"Searching n8n with query: {query}")
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload) as resp:
+            if resp.status != 200:
+                raise Exception(f"n8n webhook error: {resp.status}")
+            response = await resp.json()
+            
+            results = []
+            if response and "data" in response:
+                results.extend(response["data"])
+            elif response:
+                results.extend(response)
+            
+            # Convert the dynamic results into Searchn8nResult objects
+            return [
+                Searchn8nResult(
+                    id=result.get("id"),
+                    content=result.get("content", ""),
+                    link=result.get("link") or result.get("file", ""),
+                    additional_fields={k: v for k, v in result.items() if k not in ["id", "content", "link"]}
+                )
+                for result in results
+            ]
+
+@router.post("/process/n8n/search")
+async def process_n8n_search(
+    request: Request,
+    form_data: SearchForm,
+    user=Depends(get_verified_user)
+):
+    urls = []
+    try:
+        logging.info(
+            f"trying to n8n search with {request.app.state.config.N8N_WEBHOOK_URL}, queries: {form_data.queries}"
+        )
+
+        # ✅ async 正確寫法
+        search_tasks = [
+            search_n8n(request, query)
+            for query in form_data.queries
+        ]
+        print(f"search_tasks: {search_tasks}")
+
+        search_results = await asyncio.gather(*search_tasks)
+
+        # ✅ 攤平 nested list
+        flat_results = [item for result in search_results for item in result]
+
+        for item in flat_results:
+            if item and item.link:
+                urls.append(item.link)
+
+        urls = list(dict.fromkeys(urls))  # remove duplicates
+        log.debug(f"n8n urls: {urls}")
+
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"n8n search failed: {str(e)}",
+        )
+
+    try:
+        if request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL:
+            # ✅ 不進行 embedding，直接包成 langchain Document
+            docs = [
+                Document(
+                    page_content=item.content,
+                    metadata={
+                        "engine": "n8n",
+                        "title": item.title if hasattr(item, "title") else "",
+                        "snippet": item.content,
+                        "link": item.link,
+                        "source": item.link or item.file or "",
+                        **item.additional_fields,
+                    },
+                )
+                for item in flat_results if item and item.content
+            ]
+
+            return {
+                "status": True,
+                "collection_name": None,
+                "filenames": urls,
+                "docs": [
+                    {
+                        "content": doc.page_content,
+                        "metadata": doc.metadata,
+                    }
+                    for doc in docs
+                ],
+                "loaded_count": len(docs),
+            }
+
+        else:
+            # ✅ 若要進行 embedding
+            docs = [
+                Document(
+                    page_content=item.content,
+                    metadata={
+                        "engine": "n8n",
+                        "title": item.title if hasattr(item, "title") else "",
+                        "snippet": item.content,
+                        "link": item.link,
+                        "source": item.link or item.file or "",
+                        **item.additional_fields,
+                    },
+                )
+                for item in flat_results if item and item.content
+            ]
+
+            collection_name = (
+                f"n8n-search-{calculate_sha256_string('-'.join(form_data.queries))}"[:63]
+            )
+
+            try:
+                await run_in_threadpool(
+                    save_docs_to_vector_db,
+                    request,
+                    docs,
+                    collection_name,
+                    overwrite=True,
+                    user=user,
+                )
+            except Exception as e:
+                log.debug(f"error saving docs: {e}")
+
+            return {
+                "status": True,
+                "collection_names": [collection_name],
+                "filenames": urls,
+                "loaded_count": len(docs),
+            }
+
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"n8n post-processing error: {str(e)}",
         )
 
 

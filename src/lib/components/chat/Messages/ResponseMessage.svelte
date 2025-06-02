@@ -702,6 +702,8 @@
 													{$i18n.t('Generating search query')}
 												{:else if status?.description === 'Searching the web'}
 													{$i18n.t('Searching the web...')}
+												{:else if status?.description === 'Searching from n8n'}
+													{$i18n.t('Searching from n8n...')}
 												{:else}
 													{status?.description}
 												{/if}

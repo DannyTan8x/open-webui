@@ -79,6 +79,8 @@
 		vision: true,
 		file_upload: true,
 		web_search: true,
+		n8n_search: true,
+		rag_search: true,
 		image_generation: true,
 		code_interpreter: true,
 		citations: true,

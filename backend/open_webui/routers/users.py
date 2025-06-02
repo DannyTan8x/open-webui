@@ -126,7 +126,9 @@ class ChatPermissions(BaseModel):
 
 class FeaturesPermissions(BaseModel):
     direct_tool_servers: bool = False
+    n8n_search: bool = True
     web_search: bool = True
+    rag_search: bool = True
     image_generation: bool = True
     code_interpreter: bool = True
     notes: bool = True

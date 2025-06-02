@@ -19,6 +19,14 @@
 			label: $i18n.t('Web Search'),
 			description: $i18n.t('Model can search the web for information')
 		},
+		n8n_search: {
+			label: $i18n.t('N8N Search'),
+			description: $i18n.t('Model can search using N8N workflows')
+		},
+		rag_search: {
+			label: $i18n.t('RAG Search'),
+			description: $i18n.t('Model can search using RAG workflows')
+		},
 		image_generation: {
 			label: $i18n.t('Image Generation'),
 			description: $i18n.t('Model can generate images based on text prompts')
@@ -43,6 +51,8 @@
 		vision?: boolean;
 		file_upload?: boolean;
 		web_search?: boolean;
+		n8n_search?: boolean;
+		rag_search?: boolean;
 		image_generation?: boolean;
 		code_interpreter?: boolean;
 		usage?: boolean;

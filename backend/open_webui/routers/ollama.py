@@ -1445,7 +1445,7 @@ async def generate_openai_chat_completion(
     user=Depends(get_verified_user),
 ):
     metadata = form_data.pop("metadata", None)
-
+    print(f"generate_openai_chat_completion form_data: {form_data}")
     try:
         completion_form = OpenAIChatCompletionForm(**form_data)
     except Exception as e:

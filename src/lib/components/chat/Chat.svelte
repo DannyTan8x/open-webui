@@ -123,6 +123,7 @@
 	let selectedToolIds = [];
 	let selectedFilterIds = [];
 	let imageGenerationEnabled = false;
+	let n8nSearchEnabled = false;
 	let webSearchEnabled = false;
 	let ragSearchEnabled = false;
 	let codeInterpreterEnabled = false;
@@ -151,6 +152,7 @@
 			files = [];
 			selectedToolIds = [];
 			selectedFilterIds = [];
+			n8nSearchEnabled = false;
 			webSearchEnabled = false;
 			ragSearchEnabled = false;
 			imageGenerationEnabled = false;
@@ -166,6 +168,7 @@
 						files = input.files;
 						selectedToolIds = input.selectedToolIds;
 						selectedFilterIds = input.selectedFilterIds;
+						n8nSearchEnabled = input.n8nSearchEnabled;
 						webSearchEnabled = input.webSearchEnabled;
 						ragSearchEnabled = input.ragSearchEnabled;
 						imageGenerationEnabled = input.imageGenerationEnabled;
@@ -215,7 +218,9 @@
 		setToolIds();
 
 		selectedFilterIds = [];
+		n8nSearchEnabled = false;
 		webSearchEnabled = false;
+		ragSearchEnabled = false;
 		imageGenerationEnabled = false;
 		codeInterpreterEnabled = false;
 	};
@@ -451,6 +456,7 @@
 			files = [];
 			selectedToolIds = [];
 			selectedFilterIds = [];
+			n8nSearchEnabled = false;
 			webSearchEnabled = false;
 			ragSearchEnabled = false;
 			imageGenerationEnabled = false;
@@ -466,6 +472,7 @@
 					files = input.files;
 					selectedToolIds = input.selectedToolIds;
 					selectedFilterIds = input.selectedFilterIds;
+					n8nSearchEnabled = input.n8nSearchEnabled;
 					webSearchEnabled = input.webSearchEnabled;
 					ragSearchEnabled = input.ragSearchEnabled;
 					imageGenerationEnabled = input.imageGenerationEnabled;
@@ -794,6 +801,9 @@
 			uploadYoutubeTranscription(
 				`https://www.youtube.com/watch?v=${$page.url.searchParams.get('youtube')}`
 			);
+		}
+		if ($page.url.searchParams.get('n8n-search') === 'true') {
+			n8nSearchEnabled = true;
 		}
 		if ($page.url.searchParams.get('web-search') === 'true') {
 			webSearchEnabled = true;
@@ -1660,6 +1670,11 @@
 						($user?.role === 'admin' || $user?.permissions?.features?.code_interpreter)
 							? codeInterpreterEnabled
 							: false,
+					n8n_search:
+						$config?.features?.enable_n8n_search &&
+						($user?.role === 'admin' || $user?.permissions?.features?.n8n_search)
+							? n8nSearchEnabled || ($settings?.n8nSearch ?? false) === 'always'
+							: false,
 					rag_search:
 						$config?.features?.enable_rag_search &&
 						($user?.role === 'admin' || $user?.permissions?.features?.rag_search)
@@ -2098,6 +2113,8 @@
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
+									bind:n8nSearchEnabled
+									bind:ragSearchEnabled
 									bind:atSelectedModel
 									toolServers={$toolServers}
 									transparentBackground={$settings?.backgroundImageUrl ?? false}

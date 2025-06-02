@@ -760,22 +760,6 @@ ENABLE_DIRECT_CONNECTIONS = PersistentConfig(
     os.environ.get("ENABLE_DIRECT_CONNECTIONS", "True").lower() == "true",
 )
 
-####################################
-# N8N_BASE_URL
-####################################
-
-N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "")
-if N8N_BASE_URL:
-    # Remove trailing slash
-    N8N_BASE_URL = (
-        N8N_BASE_URL[:-1] if N8N_BASE_URL.endswith("/") else N8N_BASE_URL
-    )
-
-N8N_BASE_URL = PersistentConfig(
-    "N8N_BASE_URL",
-    "n8n.base_url",
-    os.environ.get("N8N_BASE_URL", "")
-)
 
 ####################################
 # OLLAMA_BASE_URL
@@ -1129,9 +1113,14 @@ USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS = (
     == "true"
 )
 
+USER_PERMISSIONS_FEATURES_N8N_SEARCH = (
+    os.environ.get("USER_PERMISSIONS_FEATURES_N8N_SEARCH", "True").lower() == "true"
+)
+
 USER_PERMISSIONS_FEATURES_WEB_SEARCH = (
     os.environ.get("USER_PERMISSIONS_FEATURES_WEB_SEARCH", "True").lower() == "true"
 )
+
 USER_PERMISSIONS_FEATURES_RAG_SEARCH = (
     os.environ.get("USER_PERMISSIONS_FEATURES_RAG_SEARCH", "True").lower() == "true"
 )
@@ -1180,6 +1169,7 @@ DEFAULT_USER_PERMISSIONS = {
     },
     "features": {
         "direct_tool_servers": USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS,
+        "n8n_search": USER_PERMISSIONS_FEATURES_N8N_SEARCH,
         "web_search": USER_PERMISSIONS_FEATURES_WEB_SEARCH,
         "rag_search": USER_PERMISSIONS_FEATURES_RAG_SEARCH,
         # "rag_search": True,
@@ -1229,7 +1219,7 @@ DEFAULT_ARENA_MODEL = {
 }
 
 WEBHOOK_URL = PersistentConfig(
-    "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
+    "WEBHOOK_URL", "WEBHOOK_URL", os.environ.get("WEBHOOK_URL", "")
 )
 
 ENABLE_ADMIN_EXPORT = os.environ.get("ENABLE_ADMIN_EXPORT", "True").lower() == "true"
@@ -1458,6 +1448,12 @@ ENABLE_RETRIEVAL_QUERY_GENERATION = PersistentConfig(
     "ENABLE_RETRIEVAL_QUERY_GENERATION",
     "task.query.retrieval.enable",
     os.environ.get("ENABLE_RETRIEVAL_QUERY_GENERATION", "True").lower() == "true",
+)
+
+ENABLE_N8N_RETRIEVAL_QUERY_GENERATION = PersistentConfig(
+    "ENABLE_N8N_RETRIEVAL_QUERY_GENERATION",
+    "task.query.retrieval.enable",
+    os.environ.get("ENABLE_N8N_RETRIEVAL_QUERY_GENERATION", "True").lower() == "true",
 )
 
 
@@ -2178,6 +2174,58 @@ YOUTUBE_LOADER_PROXY_URL = PersistentConfig(
     "YOUTUBE_LOADER_PROXY_URL",
     "rag.youtube_loader_proxy_url",
     os.getenv("YOUTUBE_LOADER_PROXY_URL", ""),
+)
+
+
+####################################
+# N8N Search (RAG)
+####################################
+
+ENABLE_N8N_SEARCH = PersistentConfig(
+    "ENABLE_N8N_SEARCH",
+    "rag.n8n.search.enable",
+    os.getenv("ENABLE_N8N_SEARCH", "False").lower() == "true",
+)
+N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "")
+if N8N_BASE_URL:
+    # Remove trailing slash
+    N8N_BASE_URL = (
+        N8N_BASE_URL[:-1] if N8N_BASE_URL.endswith("/") else N8N_BASE_URL
+    )
+
+N8N_BASE_URL = PersistentConfig(
+    "N8N_BASE_URL",
+    "n8n.base_url",
+    os.environ.get("N8N_BASE_URL", "")
+)
+
+# N8N_API_KEY = os.environ.get("N8N_API_KEY", "")
+
+N8N_API_KEY = PersistentConfig(
+    "N8N_API_KEY",
+    "rag.n8n.search.n8n_api_key",
+    os.getenv("N8N_API_KEY", ""),
+)
+N8N_WEBHOOK_URL = PersistentConfig(
+    "N8N_WEBHOOK_URL",
+    "rag.n8n.search.n8n_webhook",
+    os.getenv("N8N_WEBHOOK_URL", ""),
+)
+BYPASS_N8N_EMBEDDING_AND_RETRIEVAL = PersistentConfig(
+    "BYPASS_N8N_EMBEDDING_AND_RETRIEVAL",
+    "rag.n8n.search.n8n_search_loader",
+    os.getenv("BYPASS_N8N_EMBEDDING_AND_RETRIEVAL", ""),
+)
+N8N_SEARCH_RESULT_COUNT = PersistentConfig(
+    "N8N_SEARCH_RESULT_COUNT",
+    "rag.n8n.search.n8n_search_result_count",
+    os.getenv("N8N_SEARCH_RESULT_COUNT", ""),
+)
+
+N8N_SEARCH_DOMAIN_FILTER_LIST = PersistentConfig(
+    "N8N_SEARCH_DOMAIN_FILTER_LIST",
+    "rag.n8n.search.n8n_search_domain_filter_list",
+    os.getenv("N8N_SEARCH_DOMAIN_FILTER_LIST", ""),
 )
 
 

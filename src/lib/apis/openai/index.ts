@@ -337,7 +337,7 @@ export const chatCompletion = async (
 ): Promise<[Response | null, AbortController]> => {
 	const controller = new AbortController();
 	let error = null;
-
+	console.log('src/lib/apis/openai/index.ts chatCompletion:', body);
 	const res = await fetch(`${url}/chat/completions`, {
 		signal: controller.signal,
 		method: 'POST',
@@ -365,7 +365,7 @@ export const generateOpenAIChatCompletion = async (
 	url: string = `${WEBUI_BASE_URL}/api`
 ) => {
 	let error = null;
-
+	console.log('src/lib/apis/openai/index.ts generateOpenAIChatCompletion:', body);
 	const res = await fetch(`${url}/chat/completions`, {
 		method: 'POST',
 		headers: {

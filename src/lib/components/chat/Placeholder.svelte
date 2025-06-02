@@ -39,6 +39,8 @@
 	export let imageGenerationEnabled = false;
 	export let codeInterpreterEnabled = false;
 	export let webSearchEnabled = false;
+	export let n8nSearchEnabled = false;
+	export let ragSearchEnabled = false;
 
 	export let toolServers = [];
 
@@ -197,6 +199,8 @@
 					bind:selectedFilterIds
 					bind:imageGenerationEnabled
 					bind:codeInterpreterEnabled
+					bind:n8nSearchEnabled
+					bind:ragSearchEnabled
 					bind:webSearchEnabled
 					bind:atSelectedModel
 					{toolServers}

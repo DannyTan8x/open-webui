@@ -62,6 +62,7 @@ async def get_task_config(request: Request, user=Depends(get_verified_user)):
         "ENABLE_TITLE_GENERATION": request.app.state.config.ENABLE_TITLE_GENERATION,
         "ENABLE_SEARCH_QUERY_GENERATION": request.app.state.config.ENABLE_SEARCH_QUERY_GENERATION,
         "ENABLE_RETRIEVAL_QUERY_GENERATION": request.app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION,
+        "ENABLE_N8N_RETRIEVAL_QUERY_GENERATION": request.app.state.config.ENABLE_N8N_RETRIEVAL_QUERY_GENERATION,
         "QUERY_GENERATION_PROMPT_TEMPLATE": request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE,
         "TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE": request.app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     }
@@ -79,6 +80,7 @@ class TaskConfigForm(BaseModel):
     ENABLE_TAGS_GENERATION: bool
     ENABLE_SEARCH_QUERY_GENERATION: bool
     ENABLE_RETRIEVAL_QUERY_GENERATION: bool
+    ENABLE_N8N_RETRIEVAL_QUERY_GENERATION: bool
     QUERY_GENERATION_PROMPT_TEMPLATE: str
     TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE: str
 
@@ -115,6 +117,9 @@ async def update_task_config(
     request.app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION = (
         form_data.ENABLE_RETRIEVAL_QUERY_GENERATION
     )
+    request.app.state.config.ENABLE_N8N_RETRIEVAL_QUERY_GENERATION = (
+        form_data.ENABLE_N8N_RETRIEVAL_QUERY_GENERATION
+    )
 
     request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE = (
         form_data.QUERY_GENERATION_PROMPT_TEMPLATE
@@ -135,6 +140,7 @@ async def update_task_config(
         "ENABLE_TAGS_GENERATION": request.app.state.config.ENABLE_TAGS_GENERATION,
         "ENABLE_SEARCH_QUERY_GENERATION": request.app.state.config.ENABLE_SEARCH_QUERY_GENERATION,
         "ENABLE_RETRIEVAL_QUERY_GENERATION": request.app.state.config.ENABLE_RETRIEVAL_QUERY_GENERATION,
+        "ENABLE_N8N_RETRIEVAL_QUERY_GENERATION": request.app.state.config.ENABLE_N8N_RETRIEVAL_QUERY_GENERATION,
         "QUERY_GENERATION_PROMPT_TEMPLATE": request.app.state.config.QUERY_GENERATION_PROMPT_TEMPLATE,
         "TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE": request.app.state.config.TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     }
@@ -396,7 +402,12 @@ async def generate_queries(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Query generation is disabled",
             )
-
+    elif type == "n8n_search":
+        if not request.app.state.config.ENABLE_N8N_RETRIEVAL_QUERY_GENERATION:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Query generation is disabled",
+            )
     if getattr(request.state, "direct", False) and hasattr(request.state, "model"):
         models = {
             request.state.model["id"]: request.state.model,
