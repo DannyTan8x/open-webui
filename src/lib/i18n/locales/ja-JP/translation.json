@@ -1374,5 +1374,7 @@
 	"Your entire contribution will go directly to the plugin developer; Open WebUI does not take any percentage. However, the chosen funding platform might have its own fees.": "",
 	"Youtube": "YouTube",
 	"Youtube Language": "YouTubeの言語",
-	"Youtube Proxy URL": "YouTubeのプロキシURL"
+	"Youtube Proxy URL": "YouTubeのプロキシURL",
+	"N8N Search": "n8n検索",
+	"RAG Search": "RAG検索"
 }
