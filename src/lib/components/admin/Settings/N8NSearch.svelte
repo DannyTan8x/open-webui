@@ -11,31 +11,7 @@
 	const i18n = getContext('i18n');
 
 	export let saveHandler: Function;
-
-	let webSearchEngines = [
-		'searxng',
-		'yacy',
-		'google_pse',
-		'brave',
-		'kagi',
-		'mojeek',
-		'bocha',
-		'serpstack',
-		'serper',
-		'serply',
-		'searchapi',
-		'serpapi',
-		'duckduckgo',
-		'tavily',
-		'jina',
-		'bing',
-		'exa',
-		'perplexity',
-		'sougou',
-		'firecrawl',
-		'external'
-	];
-
+	
 	let n8nConfig = null;
 
 	const submitHandler = async () => {

@@ -1055,6 +1055,7 @@
 	"SearchApi API Key": "SearchApi API 密钥",
 	"SearchApi Engine": "SearchApi 引擎",
 	"Searched {{count}} sites": "已搜索 {{count}} 个网站",
+	"Searched {{count}} resources": "搜尋到 {{count}} 個資料",
 	"Searching \"{{searchQuery}}\"": "搜索 \"{{searchQuery}}\" 中",
 	"Searching Knowledge for \"{{searchQuery}}\"": "检索有关 \"{{searchQuery}}\" 的知识中",
 	"Searching the web...": "正在搜索网络...",

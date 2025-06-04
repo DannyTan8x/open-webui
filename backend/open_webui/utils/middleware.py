@@ -538,6 +538,10 @@ async def chat_n8n_search_handler(
             queries = queries.get("queries", [])
         except Exception as e:
             queries = [response]
+        # ✅ 確保 user_message 也在 queries 裡
+        if user_message and user_message not in queries:
+            queries.append(user_message)
+
 
     except Exception as e:
         log.exception(e)
@@ -615,7 +619,7 @@ async def chat_n8n_search_handler(
                     "type": "status",
                     "data": {
                         "action": "n8n_search",
-                        "description": "Searched {{count}} resources",
+                        "description": "Searched {{count}} resources and grenerating answer ...",
                         "urls": results["filenames"],
                         "done": True,
                     },

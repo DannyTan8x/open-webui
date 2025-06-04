@@ -2171,6 +2171,8 @@
 									bind:selectedFilterIds
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
+									bind:n8nSearchEnabled
+									bind:ragSearchEnabled
 									bind:webSearchEnabled
 									bind:atSelectedModel
 									transparentBackground={$settings?.backgroundImageUrl ?? false}

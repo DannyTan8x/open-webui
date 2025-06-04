@@ -1055,6 +1055,7 @@
 	"SearchApi API Key": "Khóa API SearchApi",
 	"SearchApi Engine": "Engine SearchApi",
 	"Searched {{count}} sites": "Đã tìm kiếm {{count}} trang web",
+	"Searched {{count}} resources": "",
 	"Searching \"{{searchQuery}}\"": "Đang tìm \"{{searchQuery}}\"",
 	"Searching Knowledge for \"{{searchQuery}}\"": "Đang tìm kiếm Kiến thức cho \"{{searchQuery}}\"",
 	"Searching the web...": "",

@@ -389,6 +389,50 @@ export const generateOpenAIChatCompletion = async (
 
 	return res;
 };
+// export const generateOpenAIChatCompletion = async (
+// 	token = '',
+// 	body: object,
+// 	url = `${WEBUI_BASE_URL}/api`,
+// 	timeout = 300_000 // 300 秒
+// ) => {
+// 	const controller = new AbortController();
+// 	const timer = setTimeout(() => controller.abort(), timeout);
+
+// 	let error = null;
+
+// 	try {
+// 		const res = await fetch(`${url}/chat/completions`, {
+// 			method: 'POST',
+// 			headers: {
+// 				Authorization: `Bearer ${token}`,
+// 				'Content-Type': 'application/json'
+// 			},
+// 			body: JSON.stringify(body),
+// 			signal: controller.signal
+// 		});
+
+// 		clearTimeout(timer);
+
+// 		if (!res.ok) {
+// 			const contentType = res.headers.get('content-type') ?? '';
+// 			const errBody = contentType.includes('application/json')
+// 				? await res.json()
+// 				: await res.text(); // fallback when HTML error returned
+
+// 			throw `API 錯誤 (${res.status}): ${errBody}`;
+// 		}
+
+// 		return await res.json();
+// 	} catch (err: any) {
+// 		if (err?.name === 'AbortError') {
+// 			throw '請求逾時（Timeout），請稍後再試';
+// 		}
+// 		error = typeof err === 'object' && err !== null && 'detail' in err
+// 			? err.detail
+// 			: `${err}`;
+// 		return null;
+// 	}
+// };
 
 export const synthesizeOpenAISpeech = async (
 	token: string = '',

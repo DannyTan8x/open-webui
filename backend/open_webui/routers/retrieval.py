@@ -1950,44 +1950,6 @@ async def process_web_search(
             detail=ERROR_MESSAGES.DEFAULT(e),
         )
 
-            
-# async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
-#     n8n_url = request.app.state.config.N8N_WEBHOOK_URL
-
-#     payload = {
-#         "query": query,
-#         "limit": 20  # 你想查幾筆
-#     }
-
-#     async with aiohttp.ClientSession() as session:
-#         async with session.post(n8n_url, json=payload) as resp:
-#             if resp.status != 200:
-#                 raise Exception(f"n8n search failed: {resp.status}")
-#             results = await resp.json()
-
-#     search_results = []
-#     for item in results.get("data", []):
-#         search_results.append(SearchResult(
-#             title=item.get("title", "No Title"),
-#             snippet=item.get("summary", ""),
-#             link=item.get("url", "#")
-#         ))
-
-#     return search_results    
-
-# class DynamicSearchResult(BaseModel):
-#     id: Optional[int] = None
-#     content: str
-#     link: Optional[str] = None
-#     # This will store any additional dynamic fields
-#     additional_fields: Dict[str, Any] = {}
-
-#     @validator('additional_fields', pre=True, always=True)
-#     def set_additional_fields(cls, v, values):
-#         # Get all fields from the input that aren't part of the base model
-#         base_fields = {'id', 'content', 'link'}
-#         return {k: v for k, v in values.items() if k not in base_fields}
-
 async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
     url = request.app.state.config.N8N_WEBHOOK_URL
     payload = {
@@ -2001,25 +1963,37 @@ async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload) as resp:
             if resp.status != 200:
-                raise Exception(f"n8n webhook error: {resp.status}")
-            response = await resp.json()
-            
+                text = await resp.text()
+                raise Exception(f"n8n webhook error: {resp.status}, body: {text}")
+
+            try:
+                response = await resp.json()
+            except Exception as e:
+                text = await resp.text()
+                raise Exception(f"Failed to parse JSON from n8n response. Raw body: {text}, error: {e}")
+
+            print(f"n8n response: {response}")
             results = []
-            if response and "data" in response:
+
+            if isinstance(response, dict) and "data" in response and isinstance(response["data"], list):
                 results.extend(response["data"])
-            elif response:
+            elif isinstance(response, list):
                 results.extend(response)
-            
-            # Convert the dynamic results into Searchn8nResult objects
+            else:
+                raise Exception(f"Unexpected n8n response format: {response}")
+
             return [
                 Searchn8nResult(
-                    id=result.get("id"),
-                    content=result.get("content", ""),
-                    link=result.get("link") or result.get("file", ""),
-                    additional_fields={k: v for k, v in result.items() if k not in ["id", "content", "link"]}
+                    id=item.get("id"),
+                    content=item.get("content", ""),
+                    link=item.get("link") or item.get("file", ""),
+                    additional_fields={
+                        k: v for k, v in item.items() if k not in ["id", "content", "link", "file"]
+                    }
                 )
-                for result in results
+                for item in results if isinstance(item, dict)
             ]
+
 
 @router.post("/process/n8n/search")
 async def process_n8n_search(
@@ -2040,16 +2014,26 @@ async def process_n8n_search(
         ]
         print(f"search_tasks: {search_tasks}")
 
-        search_results = await asyncio.gather(*search_tasks)
+        # search_results = await asyncio.gather(*search_tasks)
 
-        # ✅ 攤平 nested list
-        flat_results = [item for result in search_results for item in result]
-
+        # # ✅ 攤平 nested list
+        # flat_results = [item for result in search_results for item in result]
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        print(f"search_results: {search_results}")
+        # ✅ 攤平 nested list（略過出錯的）
+        flat_results = []
+        for result in search_results:
+            if isinstance(result, Exception):
+                logging.warning(f"N8N Search 子查詢失敗：{result}")
+                continue
+            flat_results.extend(result)
+            
         for item in flat_results:
             if item and item.link:
                 urls.append(item.link)
 
         urls = list(dict.fromkeys(urls))  # remove duplicates
+        print(f"urls: {urls}")  
         log.debug(f"n8n urls: {urls}")
 
     except Exception as e:
