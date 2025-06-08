@@ -1950,16 +1950,188 @@ async def process_web_search(
             detail=ERROR_MESSAGES.DEFAULT(e),
         )
 
-async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
+# async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
+#     url = request.app.state.config.N8N_WEBHOOK_URL
+#     payload = {
+#         "question": query,
+#         "form_data": {
+#             "messages": [{"role": "user", "content": query}]
+#         }
+#     }
+#     print(f"Searching n8n with query: {query}")
+    
+#     async with aiohttp.ClientSession() as session:
+#         async with session.post(url, json=payload) as resp:
+#             if resp.status != 200:
+#                 text = await resp.text()
+#                 raise Exception(f"n8n webhook error: {resp.status}, body: {text}")
+
+#             try:
+#                 response = await resp.json()
+#             except Exception as e:
+#                 text = await resp.text()
+#                 raise Exception(f"Failed to parse JSON from n8n response. Raw body: {text}, error: {e}")
+
+#             print(f"n8n response: {response}")
+#             results = []
+
+#             if isinstance(response, dict) and "data" in response and isinstance(response["data"], list):
+#                 results.extend(response["data"])
+#             elif isinstance(response, list):
+#                 results.extend(response)
+#             else:
+#                 raise Exception(f"Unexpected n8n response format: {response}")
+
+#             return [
+#                 Searchn8nResult(
+#                     id=item.get("id"),
+#                     content=item.get("content", ""),
+#                     link=item.get("link") or item.get("file", ""),
+#                     additional_fields={
+#                         k: v for k, v in item.items() if k not in ["id", "content", "link", "file"]
+#                     }
+#                 )
+#                 for item in results if isinstance(item, dict)
+#             ]
+
+
+# @router.post("/process/n8n/search")
+# async def process_n8n_search(
+#     request: Request,
+#     form_data: SearchForm,
+#     user=Depends(get_verified_user)
+# ):
+#     urls = []
+#     try:
+#         logging.info(
+#             f"trying to n8n search with {request.app.state.config.N8N_WEBHOOK_URL}, queries: {form_data.queries}"
+#         )
+
+#         # ✅ async 正確寫法
+#         search_tasks = [
+#             search_n8n(request, query)
+#             for query in form_data.queries
+#         ]
+#         print(f"search_tasks: {search_tasks}")
+
+#         # search_results = await asyncio.gather(*search_tasks)
+
+#         # # ✅ 攤平 nested list
+#         # flat_results = [item for result in search_results for item in result]
+#         search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+#         print(f"search_results: {search_results}")
+#         # ✅ 攤平 nested list（略過出錯的）
+#         flat_results = []
+#         for result in search_results:
+#             if isinstance(result, Exception):
+#                 logging.warning(f"N8N Search 子查詢失敗：{result}")
+#                 continue
+#             flat_results.extend(result)
+            
+#         for item in flat_results:
+#             if item and item.link:
+#                 urls.append(item.link)
+
+#         urls = list(dict.fromkeys(urls))  # remove duplicates
+#         print(f"urls: {urls}")  
+#         log.debug(f"n8n urls: {urls}")
+
+#     except Exception as e:
+#         log.exception(e)
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail=f"n8n search failed: {str(e)}",
+#         )
+
+#     try:
+#         if request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL:
+#             # ✅ 不進行 embedding，直接包成 langchain Document
+#             docs = [
+#                 Document(
+#                     page_content=item.content,
+#                     metadata={
+#                         "engine": "n8n",
+#                         "title": item.title if hasattr(item, "title") else "",
+#                         "snippet": item.content,
+#                         "link": item.link,
+#                         "source": item.link or item.file or "",
+#                         **item.additional_fields,
+#                     },
+#                 )
+#                 for item in flat_results if item and item.content
+#             ]
+
+#             return {
+#                 "status": True,
+#                 "collection_name": None,
+#                 "filenames": urls,
+#                 "docs": [
+#                     {
+#                         "content": doc.page_content,
+#                         "metadata": doc.metadata,
+#                     }
+#                     for doc in docs
+#                 ],
+#                 "loaded_count": len(docs),
+#             }
+
+#         else:
+#             # ✅ 若要進行 embedding
+#             docs = [
+#                 Document(
+#                     page_content=item.content,
+#                     metadata={
+#                         "engine": "n8n",
+#                         "title": item.title if hasattr(item, "title") else "",
+#                         "snippet": item.content,
+#                         "link": item.link,
+#                         "source": item.link or item.file or "",
+#                         **item.additional_fields,
+#                     },
+#                 )
+#                 for item in flat_results if item and item.content
+#             ]
+
+#             collection_name = (
+#                 f"n8n-search-{calculate_sha256_string('-'.join(form_data.queries))}"[:63]
+#             )
+
+#             try:
+#                 await run_in_threadpool(
+#                     save_docs_to_vector_db,
+#                     request,
+#                     docs,
+#                     collection_name,
+#                     overwrite=True,
+#                     user=user,
+#                 )
+#             except Exception as e:
+#                 log.debug(f"error saving docs: {e}")
+
+#             return {
+#                 "status": True,
+#                 "collection_names": [collection_name],
+#                 "filenames": urls,
+#                 "loaded_count": len(docs),
+#             }
+
+#     except Exception as e:
+#         log.exception(e)
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail=f"n8n post-processing error: {str(e)}",
+#         )
+async def search_n8n(request: Request, queries: List[str]) -> List[Searchn8nResult]:
     url = request.app.state.config.N8N_WEBHOOK_URL
     payload = {
-        "question": query,
+        "questions": queries,
         "form_data": {
-            "messages": [{"role": "user", "content": query}]
+            "messages": [{"role": "user", "content": q} for q in queries]
         }
     }
-    print(f"Searching n8n with query: {query}")
-    
+    print(f"Searching n8n with queries: {queries}")
+
+    # ✅ 確保這一層 session 是定義好的 context
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload) as resp:
             if resp.status != 200:
@@ -1967,6 +2139,7 @@ async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
                 raise Exception(f"n8n webhook error: {resp.status}, body: {text}")
 
             try:
+                print(f"n8n response resp: {resp}")
                 response = await resp.json()
             except Exception as e:
                 text = await resp.text()
@@ -1975,10 +2148,13 @@ async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
             print(f"n8n response: {response}")
             results = []
 
-            if isinstance(response, dict) and "data" in response and isinstance(response["data"], list):
+            # ✅ 改這裡來正確展平多筆 n8n 回傳項目
+            if isinstance(response, list):
+                for item in response:
+                    if isinstance(item, dict) and "data" in item and isinstance(item["data"], list):
+                        results.extend(item["data"])
+            elif isinstance(response, dict) and "data" in response and isinstance(response["data"], list):
                 results.extend(response["data"])
-            elif isinstance(response, list):
-                results.extend(response)
             else:
                 raise Exception(f"Unexpected n8n response format: {response}")
 
@@ -1988,12 +2164,12 @@ async def search_n8n(request: Request, query: str) -> List[Searchn8nResult]:
                     content=item.get("content", ""),
                     link=item.get("link") or item.get("file", ""),
                     additional_fields={
-                        k: v for k, v in item.items() if k not in ["id", "content", "link", "file"]
+                        k: v for k, v in item.items()
+                        if k not in ["id", "content", "link", "file"]
                     }
                 )
                 for item in results if isinstance(item, dict)
             ]
-
 
 @router.post("/process/n8n/search")
 async def process_n8n_search(
@@ -2003,37 +2179,16 @@ async def process_n8n_search(
 ):
     urls = []
     try:
-        logging.info(
-            f"trying to n8n search with {request.app.state.config.N8N_WEBHOOK_URL}, queries: {form_data.queries}"
-        )
+        logging.info(f"Trying to n8n search (batched) with queries: {form_data.queries}")
 
-        # ✅ async 正確寫法
-        search_tasks = [
-            search_n8n(request, query)
-            for query in form_data.queries
-        ]
-        print(f"search_tasks: {search_tasks}")
-
-        # search_results = await asyncio.gather(*search_tasks)
-
-        # # ✅ 攤平 nested list
-        # flat_results = [item for result in search_results for item in result]
-        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        # ✅ 一次傳入所有 queries，只發一次 request
+        search_results = await search_n8n(request, form_data.queries)
         print(f"search_results: {search_results}")
-        # ✅ 攤平 nested list（略過出錯的）
-        flat_results = []
-        for result in search_results:
-            if isinstance(result, Exception):
-                logging.warning(f"N8N Search 子查詢失敗：{result}")
-                continue
-            flat_results.extend(result)
-            
-        for item in flat_results:
+
+        for item in search_results:
             if item and item.link:
                 urls.append(item.link)
-
         urls = list(dict.fromkeys(urls))  # remove duplicates
-        print(f"urls: {urls}")  
         log.debug(f"n8n urls: {urls}")
 
     except Exception as e:
@@ -2044,76 +2199,56 @@ async def process_n8n_search(
         )
 
     try:
-        if request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL:
-            # ✅ 不進行 embedding，直接包成 langchain Document
-            docs = [
-                Document(
-                    page_content=item.content,
-                    metadata={
-                        "engine": "n8n",
-                        "title": item.title if hasattr(item, "title") else "",
-                        "snippet": item.content,
-                        "link": item.link,
-                        "source": item.link or item.file or "",
-                        **item.additional_fields,
-                    },
-                )
-                for item in flat_results if item and item.content
-            ]
+        docs = [
+            Document(
+                page_content=item.content,
+                metadata={
+                    "engine": "n8n",
+                    "title": item.title if hasattr(item, "title") else "",
+                    "snippet": item.content,
+                    "link": item.link,
+                    "source": item.link or item.file or "",
+                    **item.additional_fields,
+                },
+            )
+            for item in search_results if item and item.content
+        ]
 
+        if request.app.state.config.BYPASS_N8N_EMBEDDING_AND_RETRIEVAL:
             return {
                 "status": True,
                 "collection_name": None,
                 "filenames": urls,
                 "docs": [
-                    {
-                        "content": doc.page_content,
-                        "metadata": doc.metadata,
-                    }
+                    {"content": doc.page_content, "metadata": doc.metadata}
                     for doc in docs
                 ],
                 "loaded_count": len(docs),
             }
 
-        else:
-            # ✅ 若要進行 embedding
-            docs = [
-                Document(
-                    page_content=item.content,
-                    metadata={
-                        "engine": "n8n",
-                        "title": item.title if hasattr(item, "title") else "",
-                        "snippet": item.content,
-                        "link": item.link,
-                        "source": item.link or item.file or "",
-                        **item.additional_fields,
-                    },
-                )
-                for item in flat_results if item and item.content
-            ]
+        # Embed and store in vector DB
+        collection_name = (
+            f"n8n-search-{calculate_sha256_string('-'.join(form_data.queries))}"[:63]
+        )
 
-            collection_name = (
-                f"n8n-search-{calculate_sha256_string('-'.join(form_data.queries))}"[:63]
+        try:
+            await run_in_threadpool(
+                save_docs_to_vector_db,
+                request,
+                docs,
+                collection_name,
+                overwrite=True,
+                user=user,
             )
+        except Exception as e:
+            log.debug(f"error saving docs: {e}")
 
-            try:
-                await run_in_threadpool(
-                    save_docs_to_vector_db,
-                    request,
-                    docs,
-                    collection_name,
-                    overwrite=True,
-                    user=user,
-                )
-            except Exception as e:
-                log.debug(f"error saving docs: {e}")
-
-            return {
-                "status": True,
-                "collection_names": [collection_name],
-                "filenames": urls,
-                "loaded_count": len(docs),
-            }
+        return {
+            "status": True,
+            "collection_names": [collection_name],
+            "filenames": urls,
+            "loaded_count": len(docs),
+        }
 
     except Exception as e:
         log.exception(e)
